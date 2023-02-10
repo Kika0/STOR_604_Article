@@ -1,30 +1,27 @@
 library(tidyverse)
 library(stringr)
 library(rvest)
-
-h <- read_html("https://www.shmu.sk/sk/?page=1&id=klimat_operativneudaje1&identif=11930&rok=2021&obdobie=1991-2020&sub=1")
-h[1]
-scripts <- h %>% html_nodes("script") %>% html_text(trim=TRUE) 
-
-new <- scripts[grepl('var wn_longterm_serie =|var wn_current_serie = ',scripts)]
-
-
-json_long <- scripts[grepl('var wn_longterm_serie = ',scripts)]
-h %>% class()
-
 library(jsonlite)
-fromJSON(json_long)
 
-str_sub(json_long,,-1)
+h <- read_html("https://www.shmu.sk/sk/?page=1&id=klimat_operativneudaje1&identif=11930&rok=2020&obdobie=1991-2020&sub=1")
+scripts <- h %>% html_nodes("script") %>% html_text(trim=TRUE) 
+json_long <- scripts[grepl('var wn_longterm_serie = ',scripts)]
 
-str_extract(json_long,"data:$")
+dum <- "dfdff.\\..sdfsaf var wn_longterm_serie= asdad....,, data: [[5,4],[4,6]]}; ghsahdAGDS, var wn_current_serie= asdad....,, data: [[5,4],[4,6]]};"
 
-str_sub( gsub(".*data:", "",json_long),1,200 )
+gsub("\\]\\]\\};.*","",dum)
 
-str_sub(json_long,1,800)
+gsub(".*data:","",dum)
 
-long <- fromJSON(str_sub(gsub("\\]\\];.*","",gsub("[^data\\:]+","",gsub(".*wn\\_longterm\\_serie","",json_long))),1,-3)) %>% as.data.frame()
+str_count(dum,".*data:")
 
-ggplot(long,aes(x=V1,y=V2)) + geom_line()
+long_temp <- fromJSON(gsub(".*data:","", gsub("\\};.*","", gsub(".*wn\\_longterm\\_serie","",json_long)))) %>%
+  as.data.frame() 
+colnames(long_temp) <- c("rm_date","longterm_temp")
+long_temp <- long_temp %>% select(longterm_temp)
 
-long %>% slice_head(n=20)
+date2020 <- seq(as.Date('2020/01/01'), by = 'day', length.out = 366)
+
+df <- cbind(date2020,long_temp) %>% filter(date2020 != '2020/2/29')
+
+ggplot(df,aes(x=date2020,y=longterm_temp)) + geom_line()
