@@ -1,0 +1,200 @@
+---
+title: "EDA"
+output:
+      rmarkdown::html_document:
+        df_print: paged
+        theme: flatly
+      #  fig_width: 5
+        highlight: breezedark
+        toc: yes
+        toc_float: yes
+        code_download: yes
+date: "2023-03-07"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Exploratory data analysis
+
+Data spans average daily temperature from Kosice International Airport from $2009$ to $2022$ and daily mean averaged over $1981-2010$ for comparison of the temperature to be expected on a given day from historical data.
+
+```{r}
+library(tidyverse)
+# load data (see SHMU_scraping.R for web scraping script)
+temp_nonleap <- read_rds("temp_nonleap.rds")
+temp_leap <- read_rds("temp_leap.rds")
+```
+
+View each of the datasets.
+
+```{r}
+temp_leap %>% slice_head(n=10)
+temp_nonleap %>% slice_head(n=10)
+```
+
+### Weekly plot
+
+```{r}
+temp_nonleap[1:7,] %>% 
+ggplot(aes(x=date2019,y=temp2019)) + geom_line() + theme_minimal() + xlab("")
+```
+
+Hard to see any trends.
+
+### Monthly plot
+
+```{r}
+temp_nonleap[1:31,] %>% 
+ggplot(aes(x=date2019,y=temp2019)) + geom_line() + theme_minimal() + xlab("")
+```
+
+Too much variation, daily temperature is quite variable.
+
+### Yearly plot
+
+```{r}
+temp_nonleap %>%  ggplot(aes(x=date2019,y=temp2019)) + geom_line() + theme_minimal() + xlab("")
+```
+
+### All the years
+
+```{r}
+#temp_nonleap %>%  pivot_longer(starts_with("date"))
+# create empty dataframe
+long_temp <- data.frame(matrix(nrow=0,ncol=3))
+colnames(long_temp) <- c("date","temp","longterm_temp")
+for (i in 1:11) {
+  colnames(temp_nonleap)[c(3*i-2,3*i-1,3*i)] <- c("date","temp","longterm_temp")
+ long_temp <- rbind(long_temp,temp_nonleap[,c(3*i-2,3*i-1,3*i)]) 
+}
+
+for (i in 1:3) {
+  colnames(temp_leap)[c(3*i-2,3*i-1,3*i)] <- c("date","temp","longterm_temp")
+ long_temp <- rbind(long_temp,temp_leap[,c(3*i-2,3*i-1,3*i)]) 
+}
+
+long_temp <- long_temp %>% arrange(date)
+  
+```
+
+```{r}
+long_temp %>%  ggplot(aes(x=date,y=temp)) + geom_line() + theme_minimal() + xlab("")
+```
+For completeness, show also longterm temperature.
+
+```{r}
+long_temp[1:365,] %>%  ggplot(aes(x=date,y=longterm_temp)) + geom_line() + theme_minimal() + xlab("")
+```
+
+Plot both temperatures on the same plot.
+
+```{r}
+long_temp %>%  ggplot() + geom_line(aes(x=date,y=temp),col= "#C11432") + geom_line(aes(x=date,y=longterm_temp),col="#009ADA") + 
+  geom_smooth(aes(x=date,y=temp),method = "lm") +
+    scale_x_date() +
+  theme_minimal() + xlab("") 
+
+```
+
+
+Clearly, some average needs to be taken.
+
+## More precise approach
+
+```{r}
+# print wrangled data
+long_temp 
+```
+
+Add a column for a difference with the daily average.
+
+```{r}
+long_temp <- long_temp %>% mutate(temp_diff=temp-longterm_temp)
+long_temp %>%  ggplot() + geom_line(aes(x=date,y=temp_diff),col= "#C11432")  +
+  geom_smooth(aes(x=date,y=temp_diff),method="lm",col='#009ADA') +
+  ylab("Difference between daily and longterm (1980-2010) temperature") +
+  theme_minimal() + xlab("")
+```
+
+```{r}
+library(tseries)
+library(forecast)
+# add yearly moving average
+long_temp <- long_temp %>% mutate(avrg_year=ma(temp,365)) %>%  mutate(avrg_year_long=ma(longterm_temp,365))
+long_temp %>%  ggplot() + geom_line(aes(x=date,y=avrg_year),col= "#C11432") + geom_line(aes(x=date,y=avrg_year_long),col="#009ADA") + theme_minimal() + xlab("")
+```
+
+### Aggregate by year
+
+```{r}
+year_mean <- c()
+long_mean <- c()
+for (i in 2009:2022) {
+  year_start <- paste0(i,'-01-01')
+  year_end <- paste0(i,'-12-31')
+  year_mean[i-2008] <- long_temp %>% filter(date >= year_start & date <= year_end) %>% select(temp) %>% pull() %>%  mean()
+  long_mean[i-2008] <- long_temp %>% filter(date >= year_start & date <= year_end) %>% select(longterm_temp) %>% pull() %>% mean()
+}
+year_mean_df <- data.frame(year=2009:2022,temp_mean=year_mean,longterm_mean=long_mean)
+year_mean_df
+```
+
+Due to leap years, yearly mean cannot be constant. It can be observed that ommiting data from February, $29$ will increase the yearly longterm mean only by $0.02$ degrees.
+
+```{r}
+year_mean <- data.frame(year=2009:2022,temp_mean=year_mean,longterm_mean=rep(long_mean[1],14))
+year_mean
+```
+
+Now, plot these.
+
+```{r}
+year_mean %>%  ggplot() + geom_line(aes(x=year,y=temp_mean),col= "#C11432") + geom_line(aes(x=year,y=longterm_mean),col="#009ADA") + theme_minimal() + xlab("") + 
+  geom_smooth(aes(x=year,y=temp_mean),method='lm', se = FALSE,col='#66A646')
+```
+
+If there was no warming, it would be assumed that the area between the blue and red line should be about zero. However, we can see that the red line stays persistently above blue line which is another indicator of global warming.
+
+Now try the same with monthly temperature average.
+
+```{r}
+month_mean <- c()
+long_mean <- c()
+mean_start <- c()
+mean_end <- c()
+for (i in 2009:2022) {
+  for (j in 1:12) {
+  month_start <- as.Date(paste0(i,'-',j,'-01'))
+  month_end <- as.Date(paste0(i+floor(j/12),'-',(j%%12) + 1,'-01'))
+  month_mean[(i-2009)*12+j] <- long_temp %>% filter(date >= month_start & date < month_end) %>% select(temp) %>% pull() %>%  mean()
+  long_mean[(i-2009)*12+j] <- long_temp %>% filter(date >= month_start & date < month_end) %>% select(longterm_temp) %>% pull() %>% mean()
+  mean_start[(i-2009)*12+j] <- paste0(i,'-',j,'-01')
+    mean_end[(i-2009)*12+j] <- paste0(i+floor(j/12),'-',(j%%12)+1,'-01')
+  }
+}
+month_mean_df <- data.frame(mean_start=mean_start,mean_end=mean_end,temp_mean=month_mean,longterm_mean=long_mean) %>%
+  mutate(mean_start=as.Date(mean_start),mean_end=as.Date(mean_end)) 
+month_mean_df
+```
+
+Add the same plot.
+
+```{r}
+month_mean_df %>%  ggplot() + geom_line(aes(x=mean_start,y=temp_mean),col= "#C11432") + geom_line(aes(x=mean_start,y=longterm_mean),col="#009ADA") + theme_minimal() + xlab("") + 
+  geom_smooth(aes(x=mean_start,y=temp_mean),method='lm', se = FALSE,col='#66A646')
+```
+Do the same for temperature difference.
+
+```{r}
+
+```
+
+
+### Some linear regression
+
+```{r}
+lm(longterm_mean~year,data=year_mean) %>% summary()
+```
+
