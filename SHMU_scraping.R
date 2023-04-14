@@ -29,6 +29,9 @@ for (k in 1:length(years)) {
     colnames(df)[3*k] <- paste0("longterm_temp",i)
 }
 
+# check by view() and save
+write_rds(df,"temp_nonleap.rds")
+
 # scrape leap years
 df_366 <- data.frame(nrow=rep(NA,366))
 leap_years <- c(2012,2016,2020)
@@ -57,3 +60,6 @@ for (k in 1:length(leap_years)) {
 
 # plot daily temperature for 2019
 ggplot(df,aes(x=date2019,y=temp2019)) + geom_line() + theme_minimal() + xlab("")
+
+# check by view() and save
+write_rds(df_366,"temp_leap.rds")
