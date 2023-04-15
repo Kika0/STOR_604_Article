@@ -137,21 +137,23 @@ for (i in 2009:2022) {
   year_mean[i-2008] <- long_temp %>% filter(date >= year_start & date <= year_end) %>% select(temp) %>% pull() %>%  mean()
   long_mean[i-2008] <- long_temp %>% filter(date >= year_start & date <= year_end) %>% select(longterm_temp) %>% pull() %>% mean()
 }
-year_mean_df <- data.frame(year=2009:2022,temp_mean=year_mean,longterm_mean=long_mean)
+year_mean_df <- data.frame(year=2009:2022,temp_mean=year_mean,longterm_mean=long_mean,our_mean=rep(mean(year_mean),14))
 year_mean_df
 ```
 
 Due to leap years, yearly mean cannot be constant. It can be observed that ommiting data from February, $29$ will increase the yearly longterm mean only by $0.02$ degrees.
 
 ```{r}
-year_mean <- data.frame(year=2009:2022,temp_mean=year_mean,longterm_mean=rep(long_mean[1],14))
+year_mean <- year_mean_df %>% mutate(longterm_mean=rep(long_mean[1],14))
 year_mean
 ```
 
 Now, plot these.
 
 ```{r}
-year_mean %>%  ggplot() + geom_line(aes(x=year,y=temp_mean),col= "#C11432") + geom_line(aes(x=year,y=longterm_mean),col="#009ADA") + theme_minimal() + xlab("") + 
+year_mean %>%  ggplot() + geom_line(aes(x=year,y=temp_mean),col= "#C11432")+ geom_point(aes(x=year,y=temp_mean),col= "#C11432") + geom_line(aes(x=year,y=longterm_mean),col="#009ADA") + 
+  geom_line(aes(x=year,y=our_mean),col='#C11432') +
+  theme_minimal() + xlab("") + 
   geom_smooth(aes(x=year,y=temp_mean),method='lm', se = FALSE,col='#66A646')
 ```
 
@@ -188,7 +190,8 @@ month_mean_df %>%  ggplot() + geom_line(aes(x=mean_start,y=temp_mean),col= "#C11
 Do the same for temperature difference.
 
 ```{r}
-
+month_mean_df %>% filter(mean_start < "2019-01-01") %>%  ggplot() + geom_line(aes(x=mean_start,y=temp_mean-longterm_mean),col= "#C11432") + theme_minimal() + xlab("") + 
+  geom_smooth(aes(x=mean_start,y=temp_mean-longterm_mean),method='lm', se = FALSE,col='#66A646')
 ```
 
 
