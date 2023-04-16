@@ -177,7 +177,8 @@ for (i in 2009:2022) {
   }
 }
 month_mean_df <- data.frame(mean_start=mean_start,mean_end=mean_end,temp_mean=month_mean,longterm_mean=long_mean) %>%
-  mutate(mean_start=as.Date(mean_start),mean_end=as.Date(mean_end)) 
+  mutate(mean_start=as.Date(mean_start),mean_end=as.Date(mean_end) )
+month_mean_df <-  month_mean_df %>% mutate(temp_diff=temp_mean-longterm_mean)
 month_mean_df
 ```
 
@@ -190,14 +191,26 @@ month_mean_df %>%  ggplot() + geom_line(aes(x=mean_start,y=temp_mean),col= "#C11
 Do the same for temperature difference.
 
 ```{r}
-month_mean_df %>% filter(mean_start < "2019-01-01") %>%  ggplot() + geom_line(aes(x=mean_start,y=temp_mean-longterm_mean),col= "#C11432") + theme_minimal() + xlab("") + 
-  geom_smooth(aes(x=mean_start,y=temp_mean-longterm_mean),method='lm', se = FALSE,col='#66A646')
+month_mean_df$mean_start <- as.POSIXct(month_mean_df$mean_start,tz="UTC")
+month_mean_df$mean_end <- as.POSIXct(month_mean_df$mean_end,tz="UTC")
+month_mean_df
 ```
-
-
-### Some linear regression
+Create colour scale.
 
 ```{r}
-lm(longterm_mean~year,data=year_mean) %>% summary()
+
 ```
+
+
+```{r}
+
+
+p <- ggplot(month_mean_df) +  geom_rect(alpha=1,aes(xmin=mean_start,xmax=mean_end,ymin=-Inf,ymax=+Inf,fill=temp_diff)) + scale_fill_gradient2(low='#009ADA',high='#C11432',mid='#FEFEFE',name="Temperature\ndifference") +
+   theme(legend.key.height=unit(2, "cm"))
+p  + geom_line(aes(x=mean_start,y=temp_mean-longterm_mean),col= "black") +
+  geom_point(aes(x=mean_start,y=temp_mean-longterm_mean),col= "black")+ theme_minimal() + xlab("") + 
+  geom_smooth(aes(x=mean_start,y=temp_mean-longterm_mean),method='lm', se = FALSE,col='#66A646',size=2) +
+  ylab("Difference between monthly and longterm mean")
+```
+Plot layer by layer.
 
