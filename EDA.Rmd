@@ -210,7 +210,30 @@ p <- ggplot(month_mean_df) +  geom_rect(alpha=1,aes(xmin=mean_start,xmax=mean_en
 p  + geom_line(aes(x=mean_start,y=temp_mean-longterm_mean),col= "black") +
   geom_point(aes(x=mean_start,y=temp_mean-longterm_mean),col= "black")+ theme_minimal() + xlab("") + 
   geom_smooth(aes(x=mean_start,y=temp_mean-longterm_mean),method='lm', se = FALSE,col='#66A646',size=2) +
-  ylab("Difference between monthly and longterm mean")
+  ylab("Difference between monthly and long-term mean")
 ```
 Plot layer by layer.
+
+```{r}
+p <- ggplot(month_mean_df) +  geom_rect(alpha=1,aes(xmin=mean_start,xmax=mean_end,ymin=-Inf,ymax=+Inf,fill=temp_diff)) + scale_fill_gradient2(low='#009ADA',high='#C11432',mid='#FEFEFE',name="Temperature\ndifference") +
+   theme(legend.key.height=unit(2, "cm"))
+p+ 
+  geom_point(aes(x=mean_start,y=temp_mean-longterm_mean),col= "black",alpha=0)+ theme_minimal() + xlab("") + 
+   ylab("Difference between monthly and long-term mean")
+```
+
+### Perform t-test on $\mu=0$
+
+```{r}
+mu <- month_mean_df %>% pull(temp_diff)
+mean(mu)/(sd(mu)/sqrt(length(mu)))
+t.test(x = mu,mu=0)
+```
+
+### Simple linear regression
+
+```{r}
+month_mean_df <-  month_mean_df %>% mutate(t=1:168)
+lm(temp_diff~t,data=month_mean_df) %>% summary()
+```
 
